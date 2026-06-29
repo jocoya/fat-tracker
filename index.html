@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>減脂計畫</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 頂部標題 -->
+    <header class="topbar">
+      <h1 id="page-title">今日</h1>
+      <div class="date-pill" id="date-pill"></div>
+    </header>
+
+    <main id="views">
+      <!-- ===== 今日打卡 ===== -->
+      <section class="view" id="view-today">
+        <!-- 主圈圖卡 -->
+        <div class="card macro-hero">
+          <div class="macro-ring-wrap">
+            <svg viewBox="0 0 200 200" class="macro-ring">
+              <circle class="mr-bg" cx="100" cy="100" r="86"></circle>
+              <circle class="mr-fg" id="mr-fg" cx="100" cy="100" r="86"></circle>
+            </svg>
+            <div class="macro-center">
+              <b id="eaten-kcal">0</b>
+              <span class="mc-label">已吃 Kcal</span>
+              <span class="mc-goal" id="eaten-goal-label">/ 0</span>
+            </div>
+          </div>
+          <div class="macro-bars">
+            <div class="mb">
+              <div class="mb-top"><span>蛋白質</span><span class="mb-warn" id="mb-p-warn"></span></div>
+              <div class="mb-bar"><div class="mb-fill p" id="mb-p"></div></div>
+              <div class="mb-val" id="mb-p-val">0/0g</div>
+            </div>
+            <div class="mb">
+              <div class="mb-top"><span>脂肪</span></div>
+              <div class="mb-bar"><div class="mb-fill f" id="mb-f"></div></div>
+              <div class="mb-val" id="mb-f-val">0/0g</div>
+            </div>
+            <div class="mb">
+              <div class="mb-top"><span>碳水</span></div>
+              <div class="mb-bar"><div class="mb-fill c" id="mb-c"></div></div>
+              <div class="mb-val" id="mb-c-val">0/0g</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 維持 / 目標 兩卡 -->
+        <div class="dual-cards">
+          <div class="card mini-stat maintain">
+            <span class="ms-label">維持熱量</span>
+            <span class="ms-val" id="ms-maintain">0</span><span class="ms-unit">kcal</span>
+            <span class="ms-tag">TDEE</span>
+          </div>
+          <div class="card mini-stat target">
+            <span class="ms-label">每日目標</span>
+            <span class="ms-val" id="ms-target">0</span><span class="ms-unit">kcal</span>
+            <span class="ms-tag">🔥 扣缺口後</span>
+          </div>
+        </div>
+
+        <!-- 一週計畫條 + 今日運動拉桿 -->
+        <div class="card week-strip-card">
+          <div class="week-strip" id="week-strip"></div>
+          <div class="week-today-row">
+            <span class="wt-carb" id="wt-carb">—</span>
+            <span class="wt-workout" id="wt-workout"></span>
+            <button class="back-today hidden" id="back-today">回今天</button>
+          </div>
+          <div class="workout-slider-wrap">
+            <div class="ws-top"><span>今日運動完成度</span><b id="workout-pct-label">0%</b></div>
+            <input type="range" id="workout-slider" min="0" max="100" step="5" value="0">
+            <div class="ws-marks"><span>休息</span><span>一半</span><span>完成</span></div>
+          </div>
+        </div>
+
+        <!-- 今日已加入（分四餐） -->
+        <div class="meals-wrap" id="meals-wrap"></div>
+
+        <!-- 蛋白質補充建議 -->
+        <div class="card">
+          <div class="card-head"><h2>蛋白質補充建議</h2><span class="muted">補不足 · 可多選</span></div>
+          <p class="hint" id="suggest-intro"></p>
+          <div class="suggest-grid" id="suggest-grid"></div>
+          <div class="suggest-preview hidden" id="suggest-preview"></div>
+          <button class="primary suggest-add hidden" id="suggest-add">加入選取的食物</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>今日餐點筆記</h2></div>
+          <textarea id="meal-note" placeholder="記下今天吃了什麼，方便日後替換菜單…"></textarea>
+        </div>
+
+        <!-- 隱藏的舊欄位（保留給程式相容） -->
+        <div style="display:none">
+          <span id="hero-protein"></span><span id="hero-kcal"></span><span id="hero-type"></span>
+          <span id="today-pct"></span><span id="ring-fg"></span>
+          <span id="protein-goal"></span><span id="protein-goal2"></span><span id="protein-val"></span>
+          <span id="kcal-val"></span><span id="protein-status"></span>
+          <span id="protein-bar-fill"></span><span id="protein-goal-mark"></span>
+          <span id="budget-type-label"></span><div id="budget-list"></div><span id="budget-hint"></span>
+        </div>
+      </section>
+
+      <!-- 加入食物彈窗 -->
+      <div class="modal-overlay hidden" id="food-modal">
+        <div class="modal food-modal-box">
+          <h2 id="food-modal-title">加入食物</h2>
+          <div class="search-row">
+            <input type="search" id="food-search" class="food-search" placeholder="搜尋或說出食物名稱…">
+            <button class="mic-btn" id="food-mic" title="語音搜尋">🎤</button>
+          </div>
+          <div class="combo-quick" id="combo-quick"></div>
+          <div class="food-scroll"><div class="food-grid" id="food-grid"></div></div>
+          <div class="backup-btns">
+            <button class="ghost-btn" id="add-custom">＋ 自訂</button>
+            <button class="primary" id="food-modal-close">完成</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 食物管理 ===== -->
+      <section class="view hidden" id="view-foods">
+        <div class="card">
+          <div class="card-head"><h2>常吃餐點組合</h2><span class="muted">一鍵帶入整餐</span></div>
+          <p class="hint">把「早餐固定那套」存成組合，之後一鍵加入今日，不用一項項點。</p>
+          <div class="combo-list" id="combo-list"></div>
+          <button class="add-custom" id="add-combo">＋ 用今天已加入的食物存成組合</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>我的食物清單</h2><span class="muted" id="foods-count"></span></div>
+          <p class="hint">名稱、份量、蛋白、碳水、脂肪填好，熱量會自動算。按「儲存全部」。</p>
+          <div class="food-table-head">
+            <span>名稱</span><span>份量</span><span>蛋</span><span>碳</span><span>脂</span><span>kcal</span><span></span>
+          </div>
+          <div class="food-table" id="food-table"></div>
+          <div class="backup-btns">
+            <button class="ghost-btn" id="foods-add-row">＋ 新增一列</button>
+            <button class="primary" id="foods-save">儲存全部</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>已隱藏的內建食物</h2><span class="muted" id="hidden-count"></span></div>
+          <p class="hint">長按今日食物卡可隱藏不吃的內建食物，在這裡可還原。</p>
+          <div class="hidden-list" id="hidden-list"></div>
+        </div>
+      </section>
+
+      <!-- ===== 計算 ===== -->
+      <section class="view hidden" id="view-calc">
+        <div class="card">
+          <div class="card-head"><h2>卡路里計算機</h2></div>
+          <div class="seg mini" id="calc-mode-seg">
+            <button class="seg-btn active" data-mode="macro">營養素換算</button>
+            <button class="seg-btn" data-mode="weight">食物重量</button>
+          </div>
+
+          <!-- 營養素模式 -->
+          <div id="calc-mode-macro">
+            <p class="hint">輸入蛋白/碳水/脂肪克數，自動算熱量。蛋白4·碳水4·脂肪9 kcal/g。</p>
+            <div class="field inline3">
+              <div><label>蛋白 g</label><input type="number" id="cm-p" inputmode="decimal" placeholder="0"></div>
+              <div><label>碳水 g</label><input type="number" id="cm-c" inputmode="decimal" placeholder="0"></div>
+              <div><label>脂肪 g</label><input type="number" id="cm-f" inputmode="decimal" placeholder="0"></div>
+            </div>
+          </div>
+
+          <!-- 重量模式 -->
+          <div id="calc-mode-weight" class="hidden">
+            <p class="hint">選食物類型 + 重量(g)，用每100g概估值算。</p>
+            <div class="field"><label>食物類型</label>
+              <select id="cw-type"></select>
+            </div>
+            <div class="field"><label>重量 (g)</label><input type="number" id="cw-grams" inputmode="decimal" placeholder="例如 150"></div>
+          </div>
+
+          <div class="calc-out" id="calc-out">
+            <div class="calc-kcal"><b id="calc-kcal-val">0</b><span>kcal</span></div>
+            <div class="calc-macros" id="calc-macros"></div>
+          </div>
+          <div class="field"><label>名稱（要加入或儲存時用）</label><input type="text" id="calc-name" placeholder="例如 午餐便當"></div>
+          <div class="backup-btns">
+            <button class="primary" id="calc-add-today">加入今日</button>
+            <button class="ghost-btn" id="calc-save-food">存成自訂食物</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>身體數據</h2></div>
+          <div class="field"><label>身高 (cm)</label><input type="number" id="in-height" inputmode="decimal"></div>
+          <div class="field"><label>體重 (kg)</label><input type="number" id="in-weight" inputmode="decimal"></div>
+          <div class="field"><label>體脂 (%)</label><input type="number" id="in-bf" inputmode="decimal"></div>
+          <div class="field"><label>基礎代謝 BMR (kcal)</label><input type="number" id="in-bmr" inputmode="decimal"></div>
+          <div class="field"><label>活動係數</label>
+            <select id="in-act">
+              <option value="1.375">輕度 (1.375)</option>
+              <option value="1.45" selected>中度 (1.45)</option>
+              <option value="1.55">高度 (1.55)</option>
+            </select>
+          </div>
+          <div class="field"><label>目標體脂 (%)</label><input type="number" id="in-target" inputmode="decimal"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>自訂目標</h2><span class="muted">留空=自動</span></div>
+          <p class="hint">不填就用上面數據自動算。想自己設就填這裡，會覆蓋自動值。</p>
+          <div class="field"><label>每日熱量缺口 (kcal)</label><input type="number" id="in-deficit" inputmode="decimal" placeholder="自動：770"></div>
+          <div class="field"><label>每日蛋白質下限 (g)</label><input type="number" id="in-protein-goal" inputmode="decimal" placeholder="自動依去脂體重"></div>
+          <div class="field"><label>計畫天數（多久達標）</label><input type="number" id="in-days" inputmode="decimal" placeholder="30"></div>
+        </div>
+
+        <div class="card result-card">
+          <div class="card-head"><h2>計算結果</h2></div>
+          <ul class="result-list" id="calc-result"></ul>
+        </div>
+        <p class="disclaimer">※ 數值為估算，僅供參考。你有尿酸偏高問題，正式方案請與醫師確認。</p>
+      </section>
+
+      <!-- ===== 課表 ===== -->
+      <section class="view hidden" id="view-plan">
+        <div class="seg" id="plan-seg">
+          <button class="seg-btn active" data-seg="workout">我的課表</button>
+          <button class="seg-btn" data-seg="diet">飲食概念</button>
+        </div>
+        <div id="plan-workout">
+          <div class="card">
+            <div class="card-head"><h2>每週課表</h2><span class="muted">點任一天編輯</span></div>
+            <p class="hint">先排訓練，再依強度貼碳水標籤：高強度/大肌群→高碳，中等→中碳，休息/低強度→低碳。建議比例 高:中:低 ≈ 2:2:3。</p>
+            <div class="week-edit" id="week-edit"></div>
+            <button class="add-custom" id="plan-reset">回復預設課表</button>
+          </div>
+        </div>
+        <div id="plan-diet" class="hidden"></div>
+      </section>
+
+      <!-- ===== 進度 ===== -->
+      <section class="view hidden" id="view-log">
+        <div class="card">
+          <div class="card-head"><h2>記錄體重 / 體脂</h2></div>
+          <div class="field"><label>日期（可回填過去日期）</label><input type="date" id="log-date"></div>
+          <div class="field inline">
+            <input type="number" id="log-weight" placeholder="體重 kg" inputmode="decimal">
+            <input type="number" id="log-bf" placeholder="體脂 %" inputmode="decimal">
+            <button class="primary" id="log-save">儲存</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>趨勢</h2>
+            <div class="seg mini" id="range-seg">
+              <button class="seg-btn active" data-range="7">7天</button>
+              <button class="seg-btn" data-range="30">30天</button>
+              <button class="seg-btn" data-range="0">全部</button>
+            </div>
+          </div>
+          <div class="chart-legend"><span class="lg lg-w">體重 kg</span><span class="lg lg-bf">體脂 %</span></div>
+          <canvas id="chart" height="200"></canvas>
+          <div class="log-stats" id="log-summary"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>運動完成率</h2><span class="muted" id="workout-range-label">近 7 天</span></div>
+          <div class="workout-summary" id="workout-summary"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>動態目標建議</h2><span class="muted">依體重趨勢</span></div>
+          <div id="dynamic-target"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>歷史紀錄</h2></div>
+          <ul class="history" id="history-list"></ul>
+        </div>
+        <div class="card hidden" id="cloud-card">
+          <div class="card-head"><h2>雲端備份</h2><span class="muted" id="cloud-status">未設定</span></div>
+          <p class="hint" id="cloud-hint">登入 Google 後，資料會自動同步到你的雲端，換手機或清快取都能還原。</p>
+          <div class="backup-btns">
+            <button class="primary" id="cloud-signin">Google 登入並同步</button>
+            <button class="ghost-btn hidden" id="cloud-signout">登出</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>資料備份</h2><span class="muted" id="backup-status"></span></div>
+          <p class="hint">手機可直接「分享到 Google 雲端硬碟」。建議每週備份一次。</p>
+          <div class="backup-btns">
+            <button class="primary" id="share-btn">分享 / 存到雲端硬碟</button>
+            <button class="ghost-btn" id="export-btn">下載檔案</button>
+          </div>
+          <div class="backup-btns" style="margin-top:8px">
+            <button class="ghost-btn" id="import-btn">匯入還原</button>
+          </div>
+          <input type="file" id="import-file" accept="application/json" hidden>
+        </div>
+      </section>
+    </main>
+
+    <!-- 課表編輯彈窗 -->
+    <div class="modal-overlay hidden" id="day-modal">
+      <div class="modal">
+        <h2 id="modal-title">編輯</h2>
+        <div class="field"><label>訓練內容</label><input type="text" id="modal-workout" placeholder="例如 下肢重訓 / 超慢跑 / 休息"></div>
+        <div class="field"><label>碳水類型</label>
+          <select id="modal-carb">
+            <option value="低碳">低碳（休息/低強度）</option>
+            <option value="中碳">中碳（中等訓練）</option>
+            <option value="中高碳">中高碳</option>
+            <option value="高碳">高碳（高強度/大肌群）</option>
+          </select>
+        </div>
+        <div class="backup-btns">
+          <button class="ghost-btn" id="modal-cancel">取消</button>
+          <button class="primary" id="modal-save">儲存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部分頁 -->
+    <nav class="tabbar">
+      <button class="tab active" data-view="today"><span class="ico">◎</span>今日</button>
+      <button class="tab" data-view="foods"><span class="ico">🍱</span>食物</button>
+      <button class="tab" data-view="plan"><span class="ico">≣</span>課表</button>
+      <button class="tab" data-view="log"><span class="ico">📈</span>進度</button>
+      <button class="tab" data-view="calc"><span class="ico">∑</span>計算</button>
+    </nav>
+  </div>
+
+  <script src="./firebase-config.js"></script>
+  <script src="./cloud.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+  </script>
+</body>
+</html>
