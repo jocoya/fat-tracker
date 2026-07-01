@@ -162,6 +162,13 @@ main{flex:1;padding:16px 16px 100px;display:flex;flex-direction:column;gap:14px}
 .oi-name{font-size:13px;font-weight:600;color:var(--ink)}
 .oi-macro{font-size:11px;color:var(--ink2)}
 
+/* 條碼掃描 */
+.scanner{position:relative;margin-top:10px;border-radius:12px;overflow:hidden;background:#000}
+.scanner video{width:100%;max-height:240px;object-fit:cover;display:block}
+.scan-line{position:absolute;left:8%;right:8%;top:50%;height:2px;background:var(--danger);box-shadow:0 0 8px var(--danger);animation:scanmove 2s ease-in-out infinite}
+@keyframes scanmove{0%,100%{top:30%}50%{top:70%}}
+.scan-close{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);border:none;background:rgba(0,0,0,0.6);color:#fff;padding:8px 16px;border-radius:20px;font:inherit;font-size:13px;cursor:pointer}
+
 .quick-add{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .quick-add button{border:1px solid var(--line);background:var(--card-solid);border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--ink)}
 .quick-add button:active{background:rgba(0,0,0,0.05)}

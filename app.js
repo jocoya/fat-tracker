@@ -809,7 +809,7 @@ $('#add-custom').addEventListener('click', () => {
 });
 ['cf-p', 'cf-c', 'cf-f'].forEach(id => $('#' + id).addEventListener('input', updateCfKcal));
 $('#cf-cancel').addEventListener('click', () => $('#custom-modal').classList.add('hidden'));
-$('#custom-modal').addEventListener('click', e => { if (e.target.id === 'custom-modal') $('#custom-modal').classList.add('hidden'); });
+$('#custom-modal').addEventListener('click', e => { if (e.target.id === 'custom-modal') { stopScan(); $('#custom-modal').classList.add('hidden'); } });
 
 // Google 查熱量（開新分頁）
 $('#cf-google').addEventListener('click', () => {
@@ -820,20 +820,17 @@ $('#cf-google').addEventListener('click', () => {
 });
 
 // Open Food Facts 查詢（條碼或名稱）
-$('#cf-off-btn').addEventListener('click', async () => {
-  const q = ($('#cf-off-q').value || '').trim();
+async function offQuery(q) {
   const box = $('#cf-off-result');
   if (!q) { box.innerHTML = '<span class="off-hint">請輸入條碼或名稱</span>'; return; }
   box.innerHTML = '<span class="off-hint">查詢中…</span>';
   try {
     let products = [];
     if (/^\d{6,}$/.test(q)) {
-      // 純數字 → 當條碼查
       const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${q}.json`);
       const j = await r.json();
       if (j.status === 1 && j.product) products = [j.product];
     } else {
-      // 名稱搜尋
       const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`);
       const j = await r.json();
       products = j.products || [];
@@ -842,18 +839,13 @@ $('#cf-off-btn').addEventListener('click', async () => {
     box.innerHTML = '';
     products.slice(0, 8).forEach(prod => {
       const nu = prod.nutriments || {};
-      const per100 = {
-        p: +nu.proteins_100g || 0,
-        c: +nu.carbohydrates_100g || 0,
-        f: +nu.fat_100g || 0
-      };
+      const per100 = { p: +nu.proteins_100g || 0, c: +nu.carbohydrates_100g || 0, f: +nu.fat_100g || 0 };
       const name = prod.product_name || prod.product_name_zh || prod.generic_name || '(無名稱)';
       if (!per100.p && !per100.c && !per100.f) return;
       const row = document.createElement('button');
       row.className = 'off-item';
       row.innerHTML = `<span class="oi-name">${name}</span><span class="oi-macro">每100g：蛋${per100.p.toFixed(1)}·碳${per100.c.toFixed(1)}·脂${per100.f.toFixed(1)}</span>`;
       row.addEventListener('click', () => {
-        // 讓使用者輸入實際克數換算
         const grams = parseFloat(prompt(`「${name}」你吃了幾克？（資料為每100g）`, '100')) || 100;
         const r2 = grams / 100;
         $('#cf-name').value = name;
@@ -870,7 +862,80 @@ $('#cf-off-btn').addEventListener('click', async () => {
   } catch (e) {
     box.innerHTML = '<span class="off-hint">查詢失敗（網路或資料來源問題），請手動填</span>';
   }
+}
+
+// Open Food Facts 查詢（條碼或名稱）
+$('#cf-off-btn').addEventListener('click', () => offQuery(($('#cf-off-q').value || '').trim()));
+
+/* ---------- 條碼掃描 ---------- */
+let scanStream = null, scanRAF = null, scanDetector = null, zxingReader = null;
+function stopScan() {
+  const sc = $('#cf-scanner');
+  if (scanRAF) cancelAnimationFrame(scanRAF), scanRAF = null;
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  if (zxingReader && zxingReader.reset) { try { zxingReader.reset(); } catch (e) {} zxingReader = null; }
+  sc.classList.add('hidden');
+}
+function onBarcode(code) {
+  stopScan();
+  $('#cf-off-q').value = code;
+  offQuery(code);
+}
+async function startScan() {
+  const sc = $('#cf-scanner');
+  const video = $('#cf-video');
+  sc.classList.remove('hidden');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = scanStream;
+    await video.play();
+  } catch (e) {
+    $('#cf-off-result').innerHTML = '<span class="off-hint">無法開啟相機（需授權/HTTPS）。可手動輸入條碼。</span>';
+    sc.classList.add('hidden');
+    return;
+  }
+  // 優先：原生 BarcodeDetector
+  if ('BarcodeDetector' in window) {
+    try {
+      scanDetector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
+      const tick = async () => {
+        if (!scanStream) return;
+        try {
+          const codes = await scanDetector.detect(video);
+          if (codes && codes.length) { onBarcode(codes[0].rawValue); return; }
+        } catch (e) {}
+        scanRAF = requestAnimationFrame(tick);
+      };
+      scanRAF = requestAnimationFrame(tick);
+      return;
+    } catch (e) { /* 落到 ZXing */ }
+  }
+  // 墊底：載入 ZXing
+  try {
+    if (!window.ZXing) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    zxingReader = new window.ZXing.BrowserMultiFormatReader();
+    zxingReader.decodeFromVideoDevice(null, video, (result) => {
+      if (result) onBarcode(result.getText());
+    });
+  } catch (e) {
+    $('#cf-off-result').innerHTML = '<span class="off-hint">此裝置不支援掃描，請手動輸入條碼。</span>';
+    stopScan();
+  }
+}
+$('#cf-scan-btn').addEventListener('click', () => {
+  const sc = $('#cf-scanner');
+  if (sc.classList.contains('hidden')) startScan(); else stopScan();
 });
+$('#cf-scan-close').addEventListener('click', stopScan);
+// 關閉自訂視窗時也停掉相機
+$('#cf-cancel').addEventListener('click', stopScan);
 
 // 儲存自訂食物並加入目前餐別
 $('#cf-save').addEventListener('click', () => {

@@ -153,7 +153,13 @@
           <div class="field"><label>Open Food Facts 查詢（條碼或英文名）</label>
             <div class="search-row">
               <input type="text" id="cf-off-q" placeholder="輸入條碼或英文名，按查詢">
+              <button class="ghost-btn cf-search-btn" id="cf-scan-btn" title="掃描條碼">📷</button>
               <button class="ghost-btn cf-search-btn" id="cf-off-btn">查詢</button>
+            </div>
+            <div class="scanner hidden" id="cf-scanner">
+              <video id="cf-video" playsinline muted></video>
+              <div class="scan-line"></div>
+              <button class="scan-close" id="cf-scan-close">✕ 關閉相機</button>
             </div>
             <div class="off-result" id="cf-off-result"></div>
           </div>
