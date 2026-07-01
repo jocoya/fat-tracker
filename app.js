@@ -792,16 +792,106 @@ function saveMealAsCombo(meal, items) {
   };
 })();
 
+/* ---------- 新增自訂食物（含查詢） ---------- */
+function cfKcal() {
+  const p = +$('#cf-p').value || 0, c = +$('#cf-c').value || 0, f = +$('#cf-f').value || 0;
+  return Math.round(p * 4 + c * 4 + f * 9);
+}
+function updateCfKcal() { $('#cf-kcal').textContent = cfKcal(); }
+
 $('#add-custom').addEventListener('click', () => {
-  const n = prompt('食物名稱？'); if (!n) return;
-  const q = prompt('份量？（例如 1碗、100g，可留空）', '') || '';
-  const p = parseFloat(prompt('蛋白質 (g)？', '0')) || 0;
-  const c = parseFloat(prompt('碳水 (g)？ 不確定可估或填0', '0')) || 0;
-  const f = parseFloat(prompt('脂肪 (g)？ 不確定可估或填0', '0')) || 0;
-  const kcal = Math.round(p * 4 + c * 4 + f * 9); // 自動算
-  const cf = customFoods(); cf.push({ n: n.trim(), q: q.trim(), p, c, f, kcal, tag: '自訂' });
-  store.set('customFoods', cf); renderFoodGrid();
+  // 帶入搜尋框已打的字當名稱
+  $('#cf-name').value = ($('#food-search').value || '').trim();
+  $('#cf-q').value = ''; $('#cf-p').value = 0; $('#cf-c').value = 0; $('#cf-f').value = 0;
+  $('#cf-off-q').value = ''; $('#cf-off-result').innerHTML = '';
+  updateCfKcal();
+  $('#custom-modal').classList.remove('hidden');
 });
+['cf-p', 'cf-c', 'cf-f'].forEach(id => $('#' + id).addEventListener('input', updateCfKcal));
+$('#cf-cancel').addEventListener('click', () => $('#custom-modal').classList.add('hidden'));
+$('#custom-modal').addEventListener('click', e => { if (e.target.id === 'custom-modal') $('#custom-modal').classList.add('hidden'); });
+
+// Google 查熱量（開新分頁）
+$('#cf-google').addEventListener('click', () => {
+  const name = ($('#cf-name').value || '').trim();
+  if (!name) { alert('請先輸入食物名稱'); return; }
+  const q = encodeURIComponent(name + ' 熱量 蛋白質 碳水 脂肪');
+  window.open('https://www.google.com/search?q=' + q, '_blank');
+});
+
+// Open Food Facts 查詢（條碼或名稱）
+$('#cf-off-btn').addEventListener('click', async () => {
+  const q = ($('#cf-off-q').value || '').trim();
+  const box = $('#cf-off-result');
+  if (!q) { box.innerHTML = '<span class="off-hint">請輸入條碼或名稱</span>'; return; }
+  box.innerHTML = '<span class="off-hint">查詢中…</span>';
+  try {
+    let products = [];
+    if (/^\d{6,}$/.test(q)) {
+      // 純數字 → 當條碼查
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${q}.json`);
+      const j = await r.json();
+      if (j.status === 1 && j.product) products = [j.product];
+    } else {
+      // 名稱搜尋
+      const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`);
+      const j = await r.json();
+      products = j.products || [];
+    }
+    if (!products.length) { box.innerHTML = '<span class="off-hint">查無結果，改用 🔍 Google 或手動填</span>'; return; }
+    box.innerHTML = '';
+    products.slice(0, 8).forEach(prod => {
+      const nu = prod.nutriments || {};
+      const per100 = {
+        p: +nu.proteins_100g || 0,
+        c: +nu.carbohydrates_100g || 0,
+        f: +nu.fat_100g || 0
+      };
+      const name = prod.product_name || prod.product_name_zh || prod.generic_name || '(無名稱)';
+      if (!per100.p && !per100.c && !per100.f) return;
+      const row = document.createElement('button');
+      row.className = 'off-item';
+      row.innerHTML = `<span class="oi-name">${name}</span><span class="oi-macro">每100g：蛋${per100.p.toFixed(1)}·碳${per100.c.toFixed(1)}·脂${per100.f.toFixed(1)}</span>`;
+      row.addEventListener('click', () => {
+        // 讓使用者輸入實際克數換算
+        const grams = parseFloat(prompt(`「${name}」你吃了幾克？（資料為每100g）`, '100')) || 100;
+        const r2 = grams / 100;
+        $('#cf-name').value = name;
+        $('#cf-q').value = grams + 'g';
+        $('#cf-p').value = +(per100.p * r2).toFixed(1);
+        $('#cf-c').value = +(per100.c * r2).toFixed(1);
+        $('#cf-f').value = +(per100.f * r2).toFixed(1);
+        updateCfKcal();
+        box.innerHTML = '<span class="off-hint">✓ 已帶入，確認後按儲存</span>';
+      });
+      box.appendChild(row);
+    });
+    if (!box.children.length) box.innerHTML = '<span class="off-hint">查無有效營養資料</span>';
+  } catch (e) {
+    box.innerHTML = '<span class="off-hint">查詢失敗（網路或資料來源問題），請手動填</span>';
+  }
+});
+
+// 儲存自訂食物並加入目前餐別
+$('#cf-save').addEventListener('click', () => {
+  const n = ($('#cf-name').value || '').trim();
+  if (!n) { alert('請輸入名稱'); return; }
+  const item = {
+    n, q: ($('#cf-q').value || '').trim(),
+    p: +$('#cf-p').value || 0, c: +$('#cf-c').value || 0, f: +$('#cf-f').value || 0,
+    kcal: cfKcal(), tag: '自訂'
+  };
+  const cf = customFoods(); cf.push(item); store.set('customFoods', cf);
+  // 直接加入目前餐別
+  const { all, d } = dayData();
+  d.meals[currentMeal].push({ n: item.n, q: item.q, p: item.p, c: item.c, f: item.f, kcal: item.kcal });
+  bumpUsage(item.n);
+  saveDay(all);
+  $('#custom-modal').classList.add('hidden');
+  renderFoodGrid(); renderToday();
+  alert(`已新增並加入${currentMeal}：${item.n}`);
+});
+
 $('#meal-note').addEventListener('input', e => {
   const { all, d } = dayData(); d.note = e.target.value; saveDay(all);
 });

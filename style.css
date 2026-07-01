@@ -150,6 +150,18 @@ main{flex:1;padding:16px 16px 100px;display:flex;flex-direction:column;gap:14px}
 .cq-chip span{opacity:.7;font-weight:400}
 .cq-chip:active{background:rgba(48,209,88,0.18)}
 
+/* 自訂食物彈窗 */
+.custom-modal-box{max-width:420px;max-height:88vh;overflow-y:auto}
+.cf-search-btn{flex-shrink:0;padding:11px 14px}
+.cf-kcal-row{font-size:14px;color:var(--ink2);margin:10px 0 4px}
+.cf-kcal-row b{font-size:20px;color:var(--accent);font-weight:700}
+.off-result{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:200px;overflow-y:auto}
+.off-hint{font-size:12px;color:var(--ink2)}
+.off-item{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);background:var(--card-solid);border-radius:10px;padding:8px 10px;cursor:pointer}
+.off-item:active{background:rgba(10,132,255,0.08);border-color:var(--accent)}
+.oi-name{font-size:13px;font-weight:600;color:var(--ink)}
+.oi-macro{font-size:11px;color:var(--ink2)}
+
 .quick-add{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .quick-add button{border:1px solid var(--line);background:var(--card-solid);border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--ink)}
 .quick-add button:active{background:rgba(0,0,0,0.05)}

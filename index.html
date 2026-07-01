@@ -140,6 +140,37 @@
         </div>
       </div>
 
+      <!-- 新增/查詢 自訂食物彈窗 -->
+      <div class="modal-overlay hidden" id="custom-modal">
+        <div class="modal custom-modal-box">
+          <h2>新增自訂食物</h2>
+          <div class="field"><label>名稱</label>
+            <div class="search-row">
+              <input type="text" id="cf-name" placeholder="例如 池上便當、茶葉蛋">
+              <button class="ghost-btn cf-search-btn" id="cf-google" title="Google 查熱量">🔍</button>
+            </div>
+          </div>
+          <div class="field"><label>Open Food Facts 查詢（條碼或英文名）</label>
+            <div class="search-row">
+              <input type="text" id="cf-off-q" placeholder="輸入條碼或英文名，按查詢">
+              <button class="ghost-btn cf-search-btn" id="cf-off-btn">查詢</button>
+            </div>
+            <div class="off-result" id="cf-off-result"></div>
+          </div>
+          <div class="field"><label>份量（可留空）</label><input type="text" id="cf-q" placeholder="例如 1碗、100g"></div>
+          <div class="field inline3">
+            <div><label>蛋白 g</label><input type="number" id="cf-p" inputmode="decimal" value="0"></div>
+            <div><label>碳水 g</label><input type="number" id="cf-c" inputmode="decimal" value="0"></div>
+            <div><label>脂肪 g</label><input type="number" id="cf-f" inputmode="decimal" value="0"></div>
+          </div>
+          <div class="cf-kcal-row">熱量自動：<b id="cf-kcal">0</b> kcal</div>
+          <div class="backup-btns">
+            <button class="ghost-btn" id="cf-cancel">取消</button>
+            <button class="primary" id="cf-save">儲存並加入</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== 食物管理 ===== -->
       <section class="view hidden" id="view-foods">
         <div class="card">
