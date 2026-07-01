@@ -312,6 +312,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .calc-macros b{color:var(--ink);font-size:15px}
 .primary{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:13px 18px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;white-space:nowrap}
 .primary:active{opacity:.85}
+.primary.has-update{background:var(--accent2);animation:pulse 1.2s infinite}
 .ghost-btn{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:12px;padding:13px 18px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;white-space:nowrap}
 .ghost-btn:active{background:rgba(10,132,255,0.08)}
 .backup-btns{display:flex;gap:10px;margin-top:12px}
