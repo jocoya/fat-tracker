@@ -931,7 +931,17 @@ async function startScan() {
 }
 $('#cf-scan-btn').addEventListener('click', () => {
   const sc = $('#cf-scanner');
-  if (sc.classList.contains('hidden')) startScan(); else stopScan();
+  const box = $('#cf-off-result');
+  if (sc.classList.contains('hidden')) {
+    box.innerHTML = '<span class="off-hint">正在開啟相機…（請允許相機權限）</span>';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      box.innerHTML = '<span class="off-hint">此瀏覽器不支援相機，請手動輸入條碼。</span>';
+      return;
+    }
+    startScan();
+  } else {
+    stopScan();
+  }
 });
 $('#cf-scan-close').addEventListener('click', stopScan);
 // 關閉自訂視窗時也停掉相機
