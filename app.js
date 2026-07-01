@@ -317,12 +317,13 @@ function budgetGoals(carbType) {
   const kcalGoal = +store.get('kcalIntakeGoal', Math.round((Math.max(profile.bmr * 1.1, tdee - 770)) / 10) * 10);
   let carbGoal, fatGoal;
   if (cycleOn) {
+    // 碳循環：碳水依星期，脂肪用計算頁的目標
     carbGoal = CARB_TARGET[type] || 120;
-    fatGoal = Math.round(kcalGoal * 0.28 / 9);
+    fatGoal = +store.get('fatGoal', Math.round(kcalGoal * 0.25 / 9));
   } else {
-    // 固定模式：碳水約佔 35% 熱量（顧尿酸不過低）、脂肪約 25%
-    carbGoal = Math.max(100, Math.round(kcalGoal * 0.35 / 4));
-    fatGoal = Math.round(kcalGoal * 0.25 / 9);
+    // 固定：直接用計算頁算好的目標
+    carbGoal = +store.get('carbGoal', Math.max(100, Math.round(kcalGoal * 0.35 / 4)));
+    fatGoal = +store.get('fatGoal', Math.round(kcalGoal * 0.25 / 9));
   }
   const proteinGoal = +store.get('proteinGoal', 135);
   return { type, kcalGoal, carbGoal, fatGoal, proteinGoal };
@@ -826,6 +827,16 @@ function loadCalcInputs() {
   $$('#mode-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   $('#mode-hint').textContent = MODE_INFO[mode].hint;
   $('#carb-cycle-toggle').checked = carbCycleOn();
+  // 營養素策略
+  const macroMode = store.get('macroMode', 'auto');
+  $$('#macro-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.macro === macroMode));
+  $('#macro-auto').classList.toggle('hidden', macroMode !== 'auto');
+  $('#macro-custom').classList.toggle('hidden', macroMode !== 'custom');
+  $('#in-fatperkg').value = store.get('fatPerKg', 0.7);
+  const cm = store.get('customMacros', {});
+  $('#cm2-p').value = cm.p || '';
+  $('#cm2-c').value = cm.c || '';
+  $('#cm2-f').value = cm.f || '';
 }
 function calc() {
   const p = {
@@ -863,19 +874,41 @@ function calc() {
     deficitLabel = '約 ' + Math.round(deficit) + ' kcal' + (ov.deficit ? '（自訂）' : '');
   }
 
-  // 蛋白質：依模式係數 × 體重
-  const protein = ov.proteinGoal || Math.round(p.weight * MODE_INFO[mode].proteinPerKg);
+  // 蛋白質：依模式係數 × 體重（可被自訂覆寫）
+  const macroMode = store.get('macroMode', 'auto');
+  const cmForP = store.get('customMacros', {});
+  const protein = macroMode === 'custom' && +cmForP.p
+    ? +cmForP.p
+    : (ov.proteinGoal || Math.round(p.weight * MODE_INFO[mode].proteinPerKg));
   store.set('proteinGoal', protein);
-  store.set('kcalIntakeGoal', Math.round(intake / 10) * 10);
+  const kcalGoalRounded = Math.round(intake / 10) * 10;
+  store.set('kcalIntakeGoal', kcalGoalRounded);
+
+  // ===== 三大營養素目標 =====
+  let fatGoal, carbGoal;
+  if (macroMode === 'custom') {
+    const cm = store.get('customMacros', {});
+    fatGoal = +cm.f || Math.round(p.weight * 0.7);
+    carbGoal = +cm.c || Math.max(80, Math.round((kcalGoalRounded - protein * 4 - fatGoal * 9) / 4));
+  } else {
+    // 自動：脂肪給安全下限 fatPerKg，碳水吃掉剩餘熱量
+    const fatPerKg = +store.get('fatPerKg', 0.7);
+    fatGoal = Math.round(p.weight * fatPerKg);
+    carbGoal = Math.max(80, Math.round((kcalGoalRounded - protein * 4 - fatGoal * 9) / 4));
+  }
+  store.set('fatGoal', fatGoal);
+  store.set('carbGoal', carbGoal);
 
   const rows = [
     ['目標模式', MODE_INFO[mode].label, true],
     ['脂肪量', fat.toFixed(1) + ' kg'],
     ['去脂體重 (肌肉等)', lbm.toFixed(1) + ' kg'],
     ['估計 TDEE', Math.round(tdee) + ' kcal'],
-    ['建議每日攝取', Math.round(intake / 10) * 10 + ' kcal', true],
-    ['每日蛋白質下限', protein + ' g', true],
-    [mode === 'bulk' ? '每日熱量盈餘' : '每日熱量缺口', deficitLabel]
+    ['建議每日攝取', kcalGoalRounded + ' kcal', true],
+    [mode === 'bulk' ? '每日熱量盈餘' : '每日熱量缺口', deficitLabel],
+    ['蛋白質目標', protein + ' g　(' + Math.round(protein * 4) + ' kcal)', true],
+    ['脂肪目標', fatGoal + ' g　(' + Math.round(fatGoal * 9) + ' kcal)', true],
+    ['碳水目標', carbGoal + ' g　(' + Math.round(carbGoal * 4) + ' kcal)', true]
   ];
   if (mode === 'cut') {
     rows.splice(3, 0, ['目標體重', targetW.toFixed(1) + ' kg', true], ['需減脂肪', fatToLose.toFixed(1) + ' kg', true]);
@@ -904,6 +937,23 @@ $('#carb-cycle-toggle').addEventListener('change', e => {
   store.set('carbCycle', e.target.checked);
   renderToday();
 });
+// 營養素策略切換
+$$('#macro-seg .seg-btn').forEach(b => b.addEventListener('click', () => {
+  store.set('macroMode', b.dataset.macro);
+  $$('#macro-seg .seg-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  $('#macro-auto').classList.toggle('hidden', b.dataset.macro !== 'auto');
+  $('#macro-custom').classList.toggle('hidden', b.dataset.macro !== 'custom');
+  calc(); renderToday();
+}));
+$('#in-fatperkg').addEventListener('change', e => {
+  store.set('fatPerKg', +e.target.value || 0.7);
+  calc(); renderToday();
+});
+['cm2-p', 'cm2-c', 'cm2-f'].forEach(id => $('#' + id).addEventListener('input', () => {
+  store.set('customMacros', { p: +$('#cm2-p').value || 0, c: +$('#cm2-c').value || 0, f: +$('#cm2-f').value || 0 });
+  calc(); renderToday();
+}));
 
 /* ---------- 卡路里計算機 ---------- */
 // 每 100g 概估 {p,c,f}
@@ -1268,7 +1318,7 @@ function renderWorkoutSummary() {
 }
 
 /* ---------- 資料備份 ---------- */
-const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle'];
+const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle', 'macroMode', 'customMacros', 'fatPerKg', 'fatGoal', 'carbGoal'];
 
 function buildBackup() {
   const data = { _app: 'fat-tracker', _ver: 1, _exportedAt: new Date().toISOString() };

@@ -240,6 +240,32 @@
         </div>
 
         <div class="card">
+          <div class="card-head"><h2>營養素策略</h2></div>
+          <div class="seg" id="macro-seg">
+            <button class="seg-btn active" data-macro="auto">電腦最佳化</button>
+            <button class="seg-btn" data-macro="custom">完全自訂</button>
+          </div>
+          <div id="macro-auto">
+            <p class="hint">最佳減脂公式：蛋白質拉高保肌肉、脂肪給安全下限、碳水吃掉剩餘熱量。調整脂肪下限可微調碳水多寡。</p>
+            <div class="field"><label>脂肪下限 (g/kg 體重) — 越低碳水越多</label>
+              <select id="in-fatperkg">
+                <option value="0.6">0.6（最低安全，碳水最多）</option>
+                <option value="0.7" selected>0.7（建議）</option>
+                <option value="0.8">0.8（脂肪較多，碳水較少）</option>
+              </select>
+            </div>
+          </div>
+          <div id="macro-custom" class="hidden">
+            <p class="hint">自己指定每日三大營養素克數。熱量目標仍以上方為準，這裡決定分配。</p>
+            <div class="field inline3">
+              <div><label>蛋白 g</label><input type="number" id="cm2-p" inputmode="decimal"></div>
+              <div><label>碳水 g</label><input type="number" id="cm2-c" inputmode="decimal"></div>
+              <div><label>脂肪 g</label><input type="number" id="cm2-f" inputmode="decimal"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-head"><h2>自訂目標</h2><span class="muted">留空=自動</span></div>
           <p class="hint">不填就用上面數據自動算。想自己設就填這裡，會覆蓋自動值。</p>
           <div class="field"><label>每日熱量缺口 (kcal)</label><input type="number" id="in-deficit" inputmode="decimal" placeholder="自動：770"></div>
