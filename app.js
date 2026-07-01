@@ -232,8 +232,13 @@ function renderWeekStrip() {
     strip.appendChild(cell);
   });
   const cur = plan[viewIdx];
-  $('#wt-carb').textContent = cur.carb + '日';
-  $('#wt-carb').style.color = carbColor[cur.carb] || 'var(--ink)';
+  if (carbCycleOn()) {
+    $('#wt-carb').textContent = cur.carb + '日';
+    $('#wt-carb').style.color = carbColor[cur.carb] || 'var(--ink)';
+  } else {
+    $('#wt-carb').textContent = '固定目標';
+    $('#wt-carb').style.color = 'var(--ink2)';
+  }
   $('#wt-workout').textContent = cur.workout || '尚未安排';
 }
 
@@ -248,12 +253,20 @@ function switchToWeekDay(dayIdx) {
 }
 
 function budgetGoals(carbType) {
-  const type = carbType || todayCarbType();
+  const cycleOn = carbCycleOn();
+  const type = cycleOn ? (carbType || todayCarbType()) : '固定';
   const profile = store.get('profile', DEFAULTS);
   const tdee = profile.bmr * profile.act;
   const kcalGoal = +store.get('kcalIntakeGoal', Math.round((Math.max(profile.bmr * 1.1, tdee - 770)) / 10) * 10);
-  const carbGoal = CARB_TARGET[type] || 120;
-  const fatGoal = Math.round(kcalGoal * 0.28 / 9);
+  let carbGoal, fatGoal;
+  if (cycleOn) {
+    carbGoal = CARB_TARGET[type] || 120;
+    fatGoal = Math.round(kcalGoal * 0.28 / 9);
+  } else {
+    // 固定模式：碳水約佔 35% 熱量（顧尿酸不過低）、脂肪約 25%
+    carbGoal = Math.max(100, Math.round(kcalGoal * 0.35 / 4));
+    fatGoal = Math.round(kcalGoal * 0.25 / 9);
+  }
   const proteinGoal = +store.get('proteinGoal', 135);
   return { type, kcalGoal, carbGoal, fatGoal, proteinGoal };
 }
@@ -735,6 +748,14 @@ $('#meal-note').addEventListener('input', e => {
 });
 
 /* ---------- 計算 ---------- */
+const MODE_INFO = {
+  cut: { label: '減脂', proteinPerKg: 2.2, hint: '製造熱量赤字。蛋白質拉高到 2.2g/kg 體重保護肌肉（大赤字更要吃夠）。' },
+  maintain: { label: '維持', proteinPerKg: 1.8, hint: '吃到 TDEE 附近維持體重。蛋白質 1.8g/kg。' },
+  bulk: { label: '增肌', proteinPerKg: 1.9, hint: '熱量盈餘約 +12%，配合重訓長肌肉。蛋白質 1.9g/kg 即可，重點在盈餘與訓練。' }
+};
+function getMode() { return store.get('goalMode', 'cut'); }
+function carbCycleOn() { return store.get('carbCycle', false); }
+
 function loadCalcInputs() {
   const s = store.get('profile', DEFAULTS);
   $('#in-height').value = s.height; $('#in-weight').value = s.weight;
@@ -744,6 +765,10 @@ function loadCalcInputs() {
   $('#in-deficit').value = ov.deficit || '';
   $('#in-protein-goal').value = ov.proteinGoal || '';
   $('#in-days').value = ov.days || '';
+  const mode = getMode();
+  $$('#mode-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $('#mode-hint').textContent = MODE_INFO[mode].hint;
+  $('#carb-cycle-toggle').checked = carbCycleOn();
 }
 function calc() {
   const p = {
@@ -751,7 +776,6 @@ function calc() {
     bmr: +$('#in-bmr').value, act: +$('#in-act').value, target: +$('#in-target').value
   };
   store.set('profile', p);
-  // 覆寫值
   const ov = {
     deficit: +$('#in-deficit').value || 0,
     proteinGoal: +$('#in-protein-goal').value || 0,
@@ -759,30 +783,46 @@ function calc() {
   };
   store.set('overrides', ov);
 
+  const mode = getMode();
   const fat = p.weight * p.bf / 100;
   const lbm = p.weight - fat;
   const targetW = lbm / (1 - p.target / 100);
   const fatToLose = p.weight - targetW;
   const tdee = p.bmr * p.act;
   const days = ov.days || 30;
-  const autoDeficit = fatToLose * 7700 / days;
-  const deficit = ov.deficit || autoDeficit;
-  const intake = Math.max(p.bmr * 1.1, tdee - deficit);
-  const protein = ov.proteinGoal || Math.round(lbm * 1.8);
+
+  // 依模式決定熱量目標
+  let intake, deficitLabel;
+  if (mode === 'bulk') {
+    intake = tdee * 1.12;
+    deficitLabel = '盈餘 約 +' + Math.round(intake - tdee) + ' kcal';
+  } else if (mode === 'maintain') {
+    intake = tdee;
+    deficitLabel = '維持（無缺口）';
+  } else {
+    const autoDeficit = fatToLose * 7700 / days;
+    const deficit = ov.deficit || autoDeficit;
+    intake = Math.max(p.bmr * 1.1, tdee - deficit);
+    deficitLabel = '約 ' + Math.round(deficit) + ' kcal' + (ov.deficit ? '（自訂）' : '');
+  }
+
+  // 蛋白質：依模式係數 × 體重
+  const protein = ov.proteinGoal || Math.round(p.weight * MODE_INFO[mode].proteinPerKg);
   store.set('proteinGoal', protein);
   store.set('kcalIntakeGoal', Math.round(intake / 10) * 10);
 
   const rows = [
+    ['目標模式', MODE_INFO[mode].label, true],
     ['脂肪量', fat.toFixed(1) + ' kg'],
     ['去脂體重 (肌肉等)', lbm.toFixed(1) + ' kg'],
-    ['目標體重', targetW.toFixed(1) + ' kg', true],
-    ['需減脂肪', fatToLose.toFixed(1) + ' kg', true],
     ['估計 TDEE', Math.round(tdee) + ' kcal'],
-    ['計畫天數', days + ' 天'],
     ['建議每日攝取', Math.round(intake / 10) * 10 + ' kcal', true],
     ['每日蛋白質下限', protein + ' g', true],
-    ['每日熱量缺口', '約 ' + Math.round(deficit) + ' kcal' + (ov.deficit ? '（自訂）' : '')]
+    [mode === 'bulk' ? '每日熱量盈餘' : '每日熱量缺口', deficitLabel]
   ];
+  if (mode === 'cut') {
+    rows.splice(3, 0, ['目標體重', targetW.toFixed(1) + ' kg', true], ['需減脂肪', fatToLose.toFixed(1) + ' kg', true]);
+  }
   const ul = $('#calc-result'); ul.innerHTML = '';
   rows.forEach(([k, v, hl]) => {
     const li = document.createElement('li');
@@ -793,6 +833,20 @@ function calc() {
 }
 ['in-height', 'in-weight', 'in-bf', 'in-bmr', 'in-act', 'in-target', 'in-deficit', 'in-protein-goal', 'in-days'].forEach(id =>
   $('#' + id).addEventListener('input', () => { calc(); renderToday(); }));
+
+// 目標模式切換
+$$('#mode-seg .seg-btn').forEach(b => b.addEventListener('click', () => {
+  store.set('goalMode', b.dataset.mode);
+  $$('#mode-seg .seg-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  $('#mode-hint').textContent = MODE_INFO[b.dataset.mode].hint;
+  calc(); renderToday();
+}));
+// 碳水循環開關
+$('#carb-cycle-toggle').addEventListener('change', e => {
+  store.set('carbCycle', e.target.checked);
+  renderToday();
+});
 
 /* ---------- 卡路里計算機 ---------- */
 // 每 100g 概估 {p,c,f}
@@ -885,14 +939,18 @@ function renderPlan() {
 
   $('#plan-diet').innerHTML = `
     <div class="card concept">
-      <h3>高中低碳怎麼分配</h3>
-      <p>先排訓練，再依強度貼標籤：<b>高強度/大肌群→高碳</b>、<b>中等訓練→中碳</b>、<b>休息/低強度→低碳</b>。一週比例 高:中:低 ≈ 2:2:3。</p>
+      <h3>❶ 為何低碳低油吃肉，肌肉反而變少？</h3>
+      <p>那是掉肌肉的配方：<b>碳水太低</b>身體會分解肌肉當燃料；<b>只吃肉不重訓</b>等於有材料沒訊號，肌肉不會長；<b>總熱量長期太低</b>身體進節能模式、優先犧牲耗能的肌肉。救回肌肉要：足夠碳水＋阻力訓練＋足夠蛋白，三者缺一不可。</p>
+      <h3>❷ 蛋白顧下限，油脂顧上限（兩個都要）</h3>
+      <p>蛋白質是「一定要達到的下限」（保肌肉）；油脂/總熱量是「絕對不能爆的上限」（維持赤字）。台灣外食隱形油一份可多 300–500 kcal，直接吃掉一天赤字，所以去油、控總熱量同樣重要。</p>
+      <h3>❸ 外食聚餐難避開怎麼辦</h3>
+      <p>不用每餐完美：<b>可控的餐（自備/超商/自助餐）嚴格</b>去油選原型，赤字靠這些撐；<b>聚餐放寬</b>——當天其他餐吃清淡高蛋白留額度，聚餐優先夾蛋白＋蔬菜、少油炸濃醬。<b>一週看平均</b>，破防一兩餐用其他天攤平。能持續的 80 分勝過痛苦的 100 分。</p>
+      <h3>❹ 低碳不會減脂更快（迷思）</h3>
+      <p>低碳初期體重掉快是<b>脫水</b>（肝醣帶水一起掉），不是脂肪，補碳就回來。真正減脂只看<b>熱量赤字</b>，與碳水高低無關。對你尿酸，極低碳的酮體還會競爭排泄、誘發痛風。碳水給到支撐訓練即可（顧尿酸別低於約 100g），<b>該壓的是油脂</b>（熱量密度最高）。</p>
       <h3>核心餐盤公式</h3>
-      <p>每餐 = <b>1 手掌蛋白質</b> + <b>半盤蔬菜</b> + <b>看當天運動量的碳水</b> + 少量好油。</p>
-      <h3>蛋白質：可多、不可太少</h3>
-      <p>顧住下限保肌肉；因尿酸問題別用大量肉海鮮衝量，優先蛋、豆製品、乳清(配足量水)。</p>
+      <p>每餐 = <b>1–2 手掌蛋白質</b> + <b>半盤蔬菜</b> + <b>一拳頭內碳水</b> + 少量好油。</p>
       <h3>紅黃綠燈</h3>
-      <p>🟢 原型蛋白、蔬菜（隨意）　🟡 飯麵地瓜水果（看份量，一餐一拳頭內）　🔴 炸物、含糖飲料、甜點（避開，顧尿酸）</p>
+      <p>🟢 原型蛋白、蔬菜（隨意）　🟡 飯麵地瓜水果（看份量）　🔴 炸物、含糖飲料、甜點、濃醬（避開，顧尿酸與隱形油）</p>
       <h3>便當怎麼吃</h3>
       <p>飯 1–2 口、油刮掉或涮水、主菜選滷蛋/豆腐/去皮雞腿/清蒸魚，蛋白不夠回家用豆漿或蛋補。</p>
     </div>`;
@@ -1153,7 +1211,7 @@ function renderWorkoutSummary() {
 }
 
 /* ---------- 資料備份 ---------- */
-const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage'];
+const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle'];
 
 function buildBackup() {
   const data = { _app: 'fat-tracker', _ver: 1, _exportedAt: new Date().toISOString() };

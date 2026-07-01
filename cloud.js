@@ -3,7 +3,7 @@
 
 const Cloud = (() => {
   const SYNC_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods',
-    'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage'];
+    'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle'];
   const get = k => { try { const v = localStorage.getItem('ft_' + k); return v === null ? null : JSON.parse(v); } catch { return null; } };
   const set = (k, v) => localStorage.setItem('ft_' + k, JSON.stringify(v));
 

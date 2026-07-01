@@ -212,10 +212,25 @@
         </div>
 
         <div class="card">
+          <div class="card-head"><h2>目標模式</h2></div>
+          <div class="seg" id="mode-seg">
+            <button class="seg-btn active" data-mode="cut">減脂</button>
+            <button class="seg-btn" data-mode="maintain">維持</button>
+            <button class="seg-btn" data-mode="bulk">增肌</button>
+          </div>
+          <p class="hint" id="mode-hint"></p>
+          <label class="toggle-row">
+            <span>碳水循環（依星期分高中低碳）</span>
+            <input type="checkbox" id="carb-cycle-toggle">
+          </label>
+          <p class="hint">關閉時每天用固定目標，不隨星期變動（減脂期建議關閉，較好執行）。</p>
+        </div>
+
+        <div class="card">
           <div class="card-head"><h2>自訂目標</h2><span class="muted">留空=自動</span></div>
           <p class="hint">不填就用上面數據自動算。想自己設就填這裡，會覆蓋自動值。</p>
           <div class="field"><label>每日熱量缺口 (kcal)</label><input type="number" id="in-deficit" inputmode="decimal" placeholder="自動：770"></div>
-          <div class="field"><label>每日蛋白質下限 (g)</label><input type="number" id="in-protein-goal" inputmode="decimal" placeholder="自動依去脂體重"></div>
+          <div class="field"><label>每日蛋白質下限 (g)</label><input type="number" id="in-protein-goal" inputmode="decimal" placeholder="自動依模式計算"></div>
           <div class="field"><label>計畫天數（多久達標）</label><input type="number" id="in-days" inputmode="decimal" placeholder="30"></div>
         </div>
 
