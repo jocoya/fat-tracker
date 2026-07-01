@@ -216,7 +216,64 @@ function renderToday() {
 
   renderMeals(all, d);
   renderSuggest(d);
+  renderWeekCalories();
   $('#meal-note').value = d.note || '';
+}
+
+/* 本週熱量缺口觀察（Mon–Sun，含 viewDate 的那一週） */
+function renderWeekCalories() {
+  const profile = store.get('profile', DEFAULTS);
+  const tdee = profile.bmr * profile.act;
+  const kcalGoal = +store.get('kcalIntakeGoal', Math.round(tdee - 770));
+  const dailyDeficit = tdee - kcalGoal;               // 每日計畫缺口（增肌時為負=盈餘）
+  const allDays = store.get('days', {});
+
+  // 找出 viewDate 所在週的週一
+  const base = new Date(viewDate + 'T00:00:00');
+  const monday = new Date(base);
+  monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+
+  let accDeficit = 0, recordedDays = 0;
+  const tk = todayKey();
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+    const key = dateToKey(dt);
+    const day = allDays[key];
+    if (!day) continue;
+    // 該天吃的總熱量
+    let eaten = 0;
+    if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => eaten += f.kcal));
+    else if (day.foods) day.foods.forEach(f => eaten += f.kcal);
+    if (eaten > 0) { accDeficit += (tdee - eaten); recordedDays++; }
+  }
+
+  const weekTarget = Math.round(dailyDeficit * 7);
+  const mondayKey = dateToKey(monday);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+
+  $('#wc-range').textContent = `${mondayKey.slice(5)} ~ ${dateToKey(sunday).slice(5)}`;
+  $('#wc-deficit').textContent = Math.round(accDeficit);
+  $('#wc-target').textContent = weekTarget;
+
+  const pct = weekTarget > 0 ? Math.min(100, Math.max(0, accDeficit / weekTarget * 100)) : 0;
+  $('#wc-fill').style.width = pct + '%';
+  $('#wc-fill').classList.toggle('over', accDeficit < 0);
+
+  // 提示：還差多少 / 平均每天還要多少缺口
+  const remainDays = 7 - recordedDays;
+  const remain = weekTarget - accDeficit;
+  if (weekTarget <= 0) {
+    $('#wc-hint').textContent = '目前為維持/增肌模式，週缺口目標為 0。';
+  } else if (remain <= 0) {
+    $('#wc-hint').textContent = `✓ 本週缺口已達標（${Math.round(accDeficit)}/${weekTarget}）！`;
+  } else if (recordedDays === 0) {
+    $('#wc-hint').textContent = `本週目標累計缺口 ${weekTarget} kcal，開始記錄吧。`;
+  } else {
+    const perDay = remainDays > 0 ? Math.round(remain / remainDays) : 0;
+    $('#wc-hint').textContent = remainDays > 0
+      ? `已達 ${Math.round(accDeficit)}，還差 ${Math.round(remain)}。剩 ${remainDays} 天，平均每天再創 ${perDay} kcal 缺口即達標。`
+      : `本週已記錄 7 天，累計 ${Math.round(accDeficit)} / ${weekTarget}。`;
+  }
 }
 
 function renderWeekStrip() {
