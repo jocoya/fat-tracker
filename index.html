@@ -383,6 +383,13 @@
           </div>
           <input type="file" id="import-file" accept="application/json" hidden>
         </div>
+        <div class="card">
+          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v10</span></div>
+          <p class="hint" id="update-hint">點下方按鈕會抓取最新版本並重新載入。你的資料不會被清除。</p>
+          <div class="backup-btns">
+            <button class="primary" id="update-btn">檢查並更新</button>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -420,9 +427,48 @@
   <script src="./cloud.js"></script>
   <script src="./app.js"></script>
   <script>
+    let swReg = null;
+    let refreshing = false;
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      navigator.serviceWorker.register('./sw.js').then(reg => { swReg = reg; }).catch(()=>{});
+      // 新 SW 接管後自動重整一次
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
     }
+    // 更新按鈕
+    (function(){
+      const btn = document.getElementById('update-btn');
+      const hint = document.getElementById('update-hint');
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true; btn.textContent = '更新中…';
+        try {
+          if ('serviceWorker' in navigator && swReg) {
+            await swReg.update(); // 向伺服器要最新 sw.js
+            const waiting = swReg.waiting || swReg.installing;
+            if (waiting) {
+              // 有新版在等 → 叫它立即接管，controllerchange 會觸發 reload
+              waiting.postMessage('SKIP_WAITING');
+              hint.textContent = '正在套用新版本…';
+              return;
+            }
+          }
+          // 沒有 SW 或沒有等待中的新版 → 清快取硬重載
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          hint.textContent = '已清除快取，重新載入…';
+          setTimeout(() => window.location.reload(true), 300);
+        } catch (e) {
+          hint.textContent = '更新失敗，請手動關閉 App 重開。';
+          btn.disabled = false; btn.textContent = '檢查並更新';
+        }
+      });
+    })();
   </script>
 </body>
 </html>

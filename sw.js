@@ -1,4 +1,4 @@
-const CACHE = 'fat-tracker-v9';
+const CACHE = 'fat-tracker-v10';
 const ASSETS = [
   './index.html',
   './app.js',
@@ -24,8 +24,25 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// 接收「立即更新」訊息
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
+  const req = e.request;
+  const url = new URL(req.url);
+  // 只處理同源請求；外部（Open Food Facts、Firebase 等）直接走網路
+  if (url.origin !== location.origin) return;
+
+  // 同源 App 檔案：網路優先（拿得到就更新快取），失敗才用快取（離線可用）
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(req)
+      .then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
   );
 });
