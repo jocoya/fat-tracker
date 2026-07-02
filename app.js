@@ -201,7 +201,7 @@ function renderToday() {
   setBar('#mb-p', '#mb-p-val', t.protein, g.proteinGoal, 'g');
   setBar('#mb-f', '#mb-f-val', t.fat, g.fatGoal, 'g');
   setBar('#mb-c', '#mb-c-val', t.carb, g.carbGoal, 'g');
-  $('#mb-p-warn').textContent = t.protein < g.proteinGoal ? `差${g.proteinGoal - t.protein}` : '✓';
+  $('#mb-p-warn').textContent = t.protein < g.proteinGoal ? `差${g.proteinGoal - t.protein}` : '✓足夠';
   $('#mb-p-warn').className = 'mb-warn' + (t.protein >= g.proteinGoal ? ' ok' : '');
 
   // ===== 維持 / 目標 =====
@@ -391,7 +391,7 @@ function renderSuggest(d) {
   }
 
   // 蛋白還沒夠 → 推「高蛋白、不爆熱量」的補充
-  intro.textContent = `蛋白還差 ${needProtein}g（要補滿保肌肉）。距熱量上限還有 ${leftKcal} kcal，以下都是吃了不會爆熱量的高蛋白選項：`;
+  intro.textContent = `蛋白距目標還差 ${needProtein}g（達到即足夠，不用超標）。距熱量上限還有 ${leftKcal} kcal，以下是不會爆熱量的高蛋白選項：`;
 
   const all = [...FOOD_DB, ...customFoods()];
   const scored = all
@@ -973,9 +973,9 @@ $('#meal-note').addEventListener('input', e => {
 
 /* ---------- 計算 ---------- */
 const MODE_INFO = {
-  cut: { label: '減脂', proteinPerKg: 2.2, hint: '製造熱量赤字。蛋白質拉高到 2.2g/kg 體重保護肌肉（大赤字更要吃夠）。' },
-  maintain: { label: '維持', proteinPerKg: 1.8, hint: '吃到 TDEE 附近維持體重。蛋白質 1.8g/kg。' },
-  bulk: { label: '增肌', proteinPerKg: 1.9, hint: '熱量盈餘約 +12%，配合重訓長肌肉。蛋白質 1.9g/kg 即可，重點在盈餘與訓練。' }
+  cut: { label: '減脂', proteinPerKg: 1.7, hint: '製造熱量赤字。蛋白質 1.7g/kg 體重「足夠保肌肉」即可，不用硬追更高（追高易爆熱量、增尿酸負擔）。' },
+  maintain: { label: '維持', proteinPerKg: 1.6, hint: '吃到 TDEE 附近維持體重。蛋白質 1.6g/kg。' },
+  bulk: { label: '增肌', proteinPerKg: 1.8, hint: '熱量盈餘約 +12%，配合重訓長肌肉。蛋白質 1.8g/kg 即可，重點在盈餘與訓練。' }
 };
 function getMode() { return store.get('goalMode', 'cut'); }
 function carbCycleOn() { return store.get('carbCycle', false); }
