@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>減脂計畫</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=17">
+  <link rel="stylesheet" href="./style.css?v=18">
 </head>
 <body>
   <div id="app">
@@ -420,7 +420,7 @@
           <input type="file" id="import-file" accept="application/json" hidden>
         </div>
         <div class="card">
-          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v17</span></div>
+          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v18</span></div>
           <p class="hint" id="update-hint">點下方按鈕會抓取最新版本並重新載入。你的資料不會被清除。</p>
           <div class="backup-btns">
             <button class="primary" id="update-btn">檢查並更新</button>
@@ -459,26 +459,30 @@
     </nav>
   </div>
 
-  <script src="./firebase-config.js?v=17"></script>
-  <script src="./cloud.js?v=17"></script>
-  <script src="./app.js?v=17"></script>
+  <script src="./firebase-config.js?v=18"></script>
+  <script src="./cloud.js?v=18"></script>
+  <script src="./app.js?v=18"></script>
   <script>
     let swReg = null;
     let refreshing = false;
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').then(reg => {
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
         swReg = reg;
-        // 若一註冊就發現有等待中的新版，記錄起來
+        // 一開啟就主動檢查 GitHub 有沒有新版
+        reg.update().catch(()=>{});
         if (reg.waiting && navigator.serviceWorker.controller) {
-          markUpdateReady();
+          // 已有等待中的新版 → 自動套用（不用按鈕）
+          reg.waiting.postMessage('SKIP_WAITING');
         }
-        // 監聽新版本安裝
+        // 監聽新版本安裝完成 → 自動套用
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
           if (!nw) return;
           nw.addEventListener('statechange', () => {
             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
               markUpdateReady();
+              // 自動套用新版
+              if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
             }
           });
         });
@@ -488,6 +492,10 @@
         if (refreshing) return;
         refreshing = true;
         window.location.reload();
+      });
+      // App 從背景回到前景時，也檢查一次更新
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && swReg) swReg.update().catch(()=>{});
       });
     }
 

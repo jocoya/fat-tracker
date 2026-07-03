@@ -1091,15 +1091,10 @@ function calc() {
     const fatPerKg = +store.get('fatPerKg', 0.7);
     fatGoal = Math.round(p.weight * fatPerKg);
     if (mode === 'cut') {
-      // 減脂：碳水用「目標值」（預設低碳，可調），不吃掉全部剩餘熱量
+      // 減脂：碳水用「目標值」，脂肪給下限，熱量 = 三大營養素加總（不反灌碳水）
       carbGoal = +store.get('carbTarget', 110);
-      // 熱量 = 三大營養素加總（自然形成赤字），但不低於 BMR×1.1 安全下限
       const macroKcal = protein * 4 + carbGoal * 4 + fatGoal * 9;
-      kcalGoalRounded = Math.max(Math.round(p.bmr * 1.1 / 10) * 10, Math.round(macroKcal / 10) * 10);
-      // 若因安全下限抬高了熱量，多出來的補回碳水
-      if (kcalGoalRounded > macroKcal) {
-        carbGoal += Math.round((kcalGoalRounded - macroKcal) / 4);
-      }
+      kcalGoalRounded = Math.round(macroKcal / 10) * 10;
     } else {
       // 維持/增肌：熱量固定，碳水吃剩餘
       kcalGoalRounded = Math.round(intake / 10) * 10;
