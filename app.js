@@ -226,54 +226,65 @@ function renderWeekCalories() {
   const profile = store.get('profile', DEFAULTS);
   const tdee = profile.bmr * profile.act;
   const kcalGoal = +store.get('kcalIntakeGoal', Math.round(tdee - 770));
-  const dailyDeficit = tdee - kcalGoal;               // 每日計畫缺口（增肌時為負=盈餘）
+  const dailyDeficit = tdee - kcalGoal;
   const allDays = store.get('days', {});
 
-  // 找出 viewDate 所在週的週一
+  // viewDate 所在週的週一
   const base = new Date(viewDate + 'T00:00:00');
   const monday = new Date(base);
   monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
 
-  let accDeficit = 0, recordedDays = 0;
+  // 只計算「到今天為止已經過去+今天」的天數（未來還沒到的天不算入預算，避免誤導）
   const tk = todayKey();
+  let eatenTotal = 0, elapsedDays = 0, recordedDays = 0;
   for (let i = 0; i < 7; i++) {
     const dt = new Date(monday); dt.setDate(monday.getDate() + i);
     const key = dateToKey(dt);
+    if (key > tk) continue;              // 未來的天先不計
+    elapsedDays++;
     const day = allDays[key];
-    if (!day) continue;
-    // 該天吃的總熱量
     let eaten = 0;
-    if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => eaten += f.kcal));
-    else if (day.foods) day.foods.forEach(f => eaten += f.kcal);
-    if (eaten > 0) { accDeficit += (tdee - eaten); recordedDays++; }
+    if (day) {
+      if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => eaten += f.kcal));
+      else if (day.foods) day.foods.forEach(f => eaten += f.kcal);
+    }
+    if (eaten > 0) recordedDays++;
+    eatenTotal += eaten;
   }
 
+  // 到目前為止的「可消耗總量」= TDEE × 已過天數
+  const budgetSoFar = Math.round(tdee * elapsedDays);
+  const deficit = Math.round(budgetSoFar - eatenTotal);
   const weekTarget = Math.round(dailyDeficit * 7);
-  const mondayKey = dateToKey(monday);
+
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  $('#wc-range').textContent = `${dateToKey(monday).slice(5)} ~ ${dateToKey(sunday).slice(5)}`;
 
-  $('#wc-range').textContent = `${mondayKey.slice(5)} ~ ${dateToKey(sunday).slice(5)}`;
-  $('#wc-deficit').textContent = Math.round(accDeficit);
-  $('#wc-target').textContent = weekTarget;
+  $('#wc-budget').textContent = budgetSoFar.toLocaleString();
+  $('#wc-eaten').textContent = Math.round(eatenTotal).toLocaleString();
+  $('#wc-deficit').textContent = deficit.toLocaleString();
+  $('#wc-target').textContent = weekTarget.toLocaleString();
 
-  const pct = weekTarget > 0 ? Math.min(100, Math.max(0, accDeficit / weekTarget * 100)) : 0;
-  $('#wc-fill').style.width = pct + '%';
-  $('#wc-fill').classList.toggle('over', accDeficit < 0);
+  // 已吃條：相對於可消耗總量的比例（吃越少條越短，缺口越大）
+  const eatenPct = budgetSoFar > 0 ? Math.min(100, eatenTotal / budgetSoFar * 100) : 0;
+  const ef = $('#wc-eaten-fill');
+  ef.style.width = eatenPct + '%';
+  ef.classList.toggle('over', eatenTotal > budgetSoFar); // 吃超過消耗=沒缺口
 
-  // 提示：還差多少 / 平均每天還要多少缺口
-  const remainDays = 7 - recordedDays;
-  const remain = weekTarget - accDeficit;
+  // 提示
+  const remainDays = 7 - elapsedDays;
+  const remainTarget = weekTarget - deficit;
   if (weekTarget <= 0) {
-    $('#wc-hint').textContent = '目前為維持/增肌模式，週缺口目標為 0。';
-  } else if (remain <= 0) {
-    $('#wc-hint').textContent = `✓ 本週缺口已達標（${Math.round(accDeficit)}/${weekTarget}）！`;
-  } else if (recordedDays === 0) {
-    $('#wc-hint').textContent = `本週目標累計缺口 ${weekTarget} kcal，開始記錄吧。`;
+    $('#wc-hint').textContent = '維持/增肌模式，本週不設缺口目標。';
+  } else if (deficit >= weekTarget) {
+    $('#wc-hint').textContent = `✓ 本週缺口已達標！目前 ${deficit.toLocaleString()} / 目標 ${weekTarget.toLocaleString()} kcal。`;
+  } else if (elapsedDays === 0) {
+    $('#wc-hint').textContent = `本週目標創造 ${weekTarget.toLocaleString()} kcal 缺口。`;
   } else {
-    const perDay = remainDays > 0 ? Math.round(remain / remainDays) : 0;
+    const perDay = remainDays > 0 ? Math.round(remainTarget / remainDays) : 0;
     $('#wc-hint').textContent = remainDays > 0
-      ? `已達 ${Math.round(accDeficit)}，還差 ${Math.round(remain)}。剩 ${remainDays} 天，平均每天再創 ${perDay} kcal 缺口即達標。`
-      : `本週已記錄 7 天，累計 ${Math.round(accDeficit)} / ${weekTarget}。`;
+      ? `還差 ${remainTarget.toLocaleString()} kcal。剩 ${remainDays} 天，平均每天再省 ${perDay} kcal 即達標。`
+      : `本週最後一天，目前缺口 ${deficit.toLocaleString()} / ${weekTarget.toLocaleString()}。`;
   }
 }
 
