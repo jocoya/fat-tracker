@@ -1,4 +1,4 @@
-const CACHE = 'fat-tracker-v18';
+const CACHE = 'fat-tracker-v19';
 const ASSETS = [
   './index.html',
   './app.js',
@@ -6,6 +6,7 @@ const ASSETS = [
   './firebase-config.js',
   './style.css',
   './manifest.json',
+  './icon-96.png',
   './icon-192.png',
   './icon-512.png'
 ];

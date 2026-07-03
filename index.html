@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#f5f5f7">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>減脂計畫</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=18">
+  <link rel="stylesheet" href="./style.css?v=19">
 </head>
 <body>
   <div id="app">
@@ -420,7 +422,7 @@
           <input type="file" id="import-file" accept="application/json" hidden>
         </div>
         <div class="card">
-          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v18</span></div>
+          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v19</span></div>
           <p class="hint" id="update-hint">點下方按鈕會抓取最新版本並重新載入。你的資料不會被清除。</p>
           <div class="backup-btns">
             <button class="primary" id="update-btn">檢查並更新</button>
@@ -459,9 +461,24 @@
     </nav>
   </div>
 
-  <script src="./firebase-config.js?v=18"></script>
-  <script src="./cloud.js?v=18"></script>
-  <script src="./app.js?v=18"></script>
+  <script>
+    // 動態同步狀態列顏色到系統深/淺色
+    (function(){
+      function applyTheme(){
+        const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        let m = document.querySelector('meta[name="theme-color"]:not([media])');
+        if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
+        m.setAttribute('content', dark ? '#000000' : '#f5f5f7');
+      }
+      applyTheme();
+      if (window.matchMedia) {
+        try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch(e){}
+      }
+    })();
+  </script>
+  <script src="./firebase-config.js?v=19"></script>
+  <script src="./cloud.js?v=19"></script>
+  <script src="./app.js?v=19"></script>
   <script>
     let swReg = null;
     let refreshing = false;
