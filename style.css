@@ -177,6 +177,15 @@ main{flex:1;padding:16px 16px 100px;display:flex;flex-direction:column;gap:14px}
 @keyframes scanmove{0%,100%{top:30%}50%{top:70%}}
 .scan-close{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);border:none;background:rgba(0,0,0,0.6);color:#fff;padding:8px 16px;border-radius:20px;font:inherit;font-size:13px;cursor:pointer}
 
+/* 每100 換算框 */
+.per100-box{margin-top:10px;padding:12px;border-radius:12px;background:rgba(10,132,255,0.06);border:1px solid rgba(10,132,255,0.25)}
+.p100-title{font-size:13px;color:var(--ink);margin-bottom:8px}
+.p100-amount{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.p100-amount label{font-size:13px;color:var(--ink2)}
+.p100-amount input{flex:1;min-width:70px;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;font-size:15px;background:var(--card-solid);color:var(--ink)}
+.p100-amount span{font-size:13px;color:var(--ink2)}
+.p100-amount button{flex-shrink:0;padding:9px 12px;font-size:13px}
+
 .quick-add{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .quick-add button{border:1px solid var(--line);background:var(--card-solid);border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--ink)}
 .quick-add button:active{background:rgba(0,0,0,0.05)}

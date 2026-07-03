@@ -642,9 +642,9 @@ function drawFoodTable() {
     row.innerHTML = `
       <input class="ft-name" value="${(f.n || '').replace(/"/g, '&quot;')}" placeholder="名稱">
       <input class="ft-q" value="${(f.q || '').replace(/"/g, '&quot;')}" placeholder="份量">
-      <input class="ft-num" type="number" inputmode="decimal" value="${f.p || 0}">
-      <input class="ft-num" type="number" inputmode="decimal" value="${f.c || 0}">
-      <input class="ft-num" type="number" inputmode="decimal" value="${f.f || 0}">
+      <input class="ft-num" type="number" inputmode="decimal" placeholder="0" value="${f.p || ''}">
+      <input class="ft-num" type="number" inputmode="decimal" placeholder="0" value="${f.c || ''}">
+      <input class="ft-num" type="number" inputmode="decimal" placeholder="0" value="${f.f || ''}">
       <span class="ft-kcal" data-k="${i}">${autoK}</span>
       <button class="ft-del">✕</button>`;
     const inputs = row.querySelectorAll('input');
@@ -805,16 +805,17 @@ function saveMealAsCombo(meal, items) {
 
 /* ---------- 新增自訂食物（含查詢） ---------- */
 function cfKcal() {
-  const p = +$('#cf-p').value || 0, c = +$('#cf-c').value || 0, f = +$('#cf-f').value || 0;
+  const p = parseFloat($('#cf-p').value) || 0, c = parseFloat($('#cf-c').value) || 0, f = parseFloat($('#cf-f').value) || 0;
   return Math.round(p * 4 + c * 4 + f * 9);
 }
 function updateCfKcal() { $('#cf-kcal').textContent = cfKcal(); }
 
+let cfPer100 = null; // 掃描/查詢帶入的每100g/ml營養
 $('#add-custom').addEventListener('click', () => {
-  // 帶入搜尋框已打的字當名稱
   $('#cf-name').value = ($('#food-search').value || '').trim();
-  $('#cf-q').value = ''; $('#cf-p').value = 0; $('#cf-c').value = 0; $('#cf-f').value = 0;
+  $('#cf-q').value = ''; $('#cf-p').value = ''; $('#cf-c').value = ''; $('#cf-f').value = '';
   $('#cf-off-q').value = ''; $('#cf-off-result').innerHTML = '';
+  $('#cf-per100').classList.add('hidden'); cfPer100 = null;
   updateCfKcal();
   $('#custom-modal').classList.remove('hidden');
 });
@@ -853,19 +854,22 @@ async function offQuery(q) {
       const per100 = { p: +nu.proteins_100g || 0, c: +nu.carbohydrates_100g || 0, f: +nu.fat_100g || 0 };
       const name = prod.product_name || prod.product_name_zh || prod.generic_name || '(無名稱)';
       if (!per100.p && !per100.c && !per100.f) return;
+      // 判斷單位：液體用 ml
+      const isLiquid = /ml|liter|litre|juice|drink|milk|soda|beverage|水|乳|飲|汁|奶|茶/i.test(name + ' ' + (prod.quantity || ''));
+      const unit = isLiquid ? 'ml' : 'g';
       const row = document.createElement('button');
       row.className = 'off-item';
-      row.innerHTML = `<span class="oi-name">${name}</span><span class="oi-macro">每100g：蛋${per100.p.toFixed(1)}·碳${per100.c.toFixed(1)}·脂${per100.f.toFixed(1)}</span>`;
+      row.innerHTML = `<span class="oi-name">${name}</span><span class="oi-macro">每100${unit}：蛋${per100.p.toFixed(1)}·碳${per100.c.toFixed(1)}·脂${per100.f.toFixed(1)}</span>`;
       row.addEventListener('click', () => {
-        const grams = parseFloat(prompt(`「${name}」你吃了幾克？（資料為每100g）`, '100')) || 100;
-        const r2 = grams / 100;
+        // 帶入名稱與每100參考，顯示換算框（不再用 prompt）
         $('#cf-name').value = name;
-        $('#cf-q').value = grams + 'g';
-        $('#cf-p').value = +(per100.p * r2).toFixed(1);
-        $('#cf-c').value = +(per100.c * r2).toFixed(1);
-        $('#cf-f').value = +(per100.f * r2).toFixed(1);
-        updateCfKcal();
-        box.innerHTML = '<span class="off-hint">✓ 已帶入，確認後按儲存</span>';
+        cfPer100 = { p: per100.p, c: per100.c, f: per100.f, unit };
+        $('#cf-unit').textContent = unit;
+        $('#cf-amount-unit').textContent = unit;
+        $('#cf-per100-macro').textContent = `蛋${per100.p.toFixed(1)}·碳${per100.c.toFixed(1)}·脂${per100.f.toFixed(1)}`;
+        $('#cf-amount').value = '';
+        $('#cf-per100').classList.remove('hidden');
+        box.innerHTML = '<span class="off-hint">✓ 已選取，下方輸入你吃/喝的量再換算</span>';
       });
       box.appendChild(row);
     });
@@ -877,6 +881,21 @@ async function offQuery(q) {
 
 // Open Food Facts 查詢（條碼或名稱）
 $('#cf-off-btn').addEventListener('click', () => offQuery(($('#cf-off-q').value || '').trim()));
+
+// 依實際攝取量換算並填入三大營養素
+function applyAmount() {
+  if (!cfPer100) return;
+  const amt = parseFloat($('#cf-amount').value);
+  if (!amt || amt <= 0) { alert('請先輸入你吃/喝的數量'); return; }
+  const r = amt / 100;
+  $('#cf-p').value = +(cfPer100.p * r).toFixed(1);
+  $('#cf-c').value = +(cfPer100.c * r).toFixed(1);
+  $('#cf-f').value = +(cfPer100.f * r).toFixed(1);
+  $('#cf-q').value = amt + cfPer100.unit;
+  updateCfKcal();
+}
+$('#cf-amount-apply').addEventListener('click', applyAmount);
+$('#cf-amount').addEventListener('input', () => { if (cfPer100 && parseFloat($('#cf-amount').value) > 0) applyAmount(); });
 
 /* ---------- 條碼掃描 ---------- */
 let scanStream = null, scanRAF = null, scanDetector = null, zxingReader = null;
