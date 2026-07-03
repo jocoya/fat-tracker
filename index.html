@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>減脂計畫</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=16">
+  <link rel="stylesheet" href="./style.css?v=17">
 </head>
 <body>
   <div id="app">
@@ -303,12 +303,22 @@
             <button class="seg-btn" data-macro="custom">完全自訂</button>
           </div>
           <div id="macro-auto">
-            <p class="hint">最佳減脂公式：蛋白質拉高保肌肉、脂肪給安全下限、碳水吃掉剩餘熱量。調整脂肪下限可微調碳水多寡。</p>
-            <div class="field"><label>脂肪下限 (g/kg 體重) — 越低碳水越多</label>
+            <p class="hint">最佳減脂公式：蛋白質高保肌肉、脂肪給安全下限、碳水設定目標值。熱量由三者加總決定（低碳低脂＝自然大赤字，減最快）。</p>
+            <div class="field"><label>每日碳水目標 (g)</label>
+              <select id="in-carbtarget">
+                <option value="70">70（較低碳，減最快）</option>
+                <option value="90">90</option>
+                <option value="110" selected>110（建議，顧尿酸）</option>
+                <option value="130">130</option>
+                <option value="150">150（中碳）</option>
+              </select>
+            </div>
+            <div class="field"><label>脂肪下限 (g/kg 體重)</label>
               <select id="in-fatperkg">
-                <option value="0.6">0.6（最低安全，碳水最多）</option>
+                <option value="0.5">0.5（最低）</option>
+                <option value="0.6">0.6</option>
                 <option value="0.7" selected>0.7（建議）</option>
-                <option value="0.8">0.8（脂肪較多，碳水較少）</option>
+                <option value="0.8">0.8</option>
               </select>
             </div>
           </div>
@@ -410,7 +420,7 @@
           <input type="file" id="import-file" accept="application/json" hidden>
         </div>
         <div class="card">
-          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v16</span></div>
+          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v17</span></div>
           <p class="hint" id="update-hint">點下方按鈕會抓取最新版本並重新載入。你的資料不會被清除。</p>
           <div class="backup-btns">
             <button class="primary" id="update-btn">檢查並更新</button>
@@ -449,9 +459,9 @@
     </nav>
   </div>
 
-  <script src="./firebase-config.js?v=16"></script>
-  <script src="./cloud.js?v=16"></script>
-  <script src="./app.js?v=16"></script>
+  <script src="./firebase-config.js?v=17"></script>
+  <script src="./cloud.js?v=17"></script>
+  <script src="./app.js?v=17"></script>
   <script>
     let swReg = null;
     let refreshing = false;

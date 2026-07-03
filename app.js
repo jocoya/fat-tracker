@@ -1029,6 +1029,7 @@ function loadCalcInputs() {
   $('#macro-auto').classList.toggle('hidden', macroMode !== 'auto');
   $('#macro-custom').classList.toggle('hidden', macroMode !== 'custom');
   $('#in-fatperkg').value = store.get('fatPerKg', 0.7);
+  $('#in-carbtarget').value = store.get('carbTarget', 110);
   const cm = store.get('customMacros', {});
   $('#cm2-p').value = cm.p || '';
   $('#cm2-c').value = cm.c || '';
@@ -1077,23 +1078,39 @@ function calc() {
     ? +cmForP.p
     : (ov.proteinGoal || Math.round(p.weight * MODE_INFO[mode].proteinPerKg));
   store.set('proteinGoal', protein);
-  const kcalGoalRounded = Math.round(intake / 10) * 10;
-  store.set('kcalIntakeGoal', kcalGoalRounded);
 
   // ===== 三大營養素目標 =====
-  let fatGoal, carbGoal;
+  let fatGoal, carbGoal, kcalGoalRounded;
   if (macroMode === 'custom') {
     const cm = store.get('customMacros', {});
     fatGoal = +cm.f || Math.round(p.weight * 0.7);
-    carbGoal = +cm.c || Math.max(80, Math.round((kcalGoalRounded - protein * 4 - fatGoal * 9) / 4));
+    carbGoal = +cm.c || Math.max(80, Math.round((Math.round(intake / 10) * 10 - protein * 4 - fatGoal * 9) / 4));
+    kcalGoalRounded = Math.round(intake / 10) * 10;
   } else {
-    // 自動：脂肪給安全下限 fatPerKg，碳水吃掉剩餘熱量
+    // 自動最佳化：先訂「低脂 + 目標碳水」，熱量由三大營養素加總決定（避免碳水被剩餘熱量灌爆）
     const fatPerKg = +store.get('fatPerKg', 0.7);
     fatGoal = Math.round(p.weight * fatPerKg);
-    carbGoal = Math.max(80, Math.round((kcalGoalRounded - protein * 4 - fatGoal * 9) / 4));
+    if (mode === 'cut') {
+      // 減脂：碳水用「目標值」（預設低碳，可調），不吃掉全部剩餘熱量
+      carbGoal = +store.get('carbTarget', 110);
+      // 熱量 = 三大營養素加總（自然形成赤字），但不低於 BMR×1.1 安全下限
+      const macroKcal = protein * 4 + carbGoal * 4 + fatGoal * 9;
+      kcalGoalRounded = Math.max(Math.round(p.bmr * 1.1 / 10) * 10, Math.round(macroKcal / 10) * 10);
+      // 若因安全下限抬高了熱量，多出來的補回碳水
+      if (kcalGoalRounded > macroKcal) {
+        carbGoal += Math.round((kcalGoalRounded - macroKcal) / 4);
+      }
+    } else {
+      // 維持/增肌：熱量固定，碳水吃剩餘
+      kcalGoalRounded = Math.round(intake / 10) * 10;
+      carbGoal = Math.max(80, Math.round((kcalGoalRounded - protein * 4 - fatGoal * 9) / 4));
+    }
   }
+  store.set('kcalIntakeGoal', kcalGoalRounded);
   store.set('fatGoal', fatGoal);
   store.set('carbGoal', carbGoal);
+  // 實際缺口重算（減脂模式）
+  if (mode === 'cut') deficitLabel = '約 ' + Math.round(tdee - kcalGoalRounded) + ' kcal';
 
   const rows = [
     ['目標模式', MODE_INFO[mode].label, true],
@@ -1144,6 +1161,10 @@ $$('#macro-seg .seg-btn').forEach(b => b.addEventListener('click', () => {
 }));
 $('#in-fatperkg').addEventListener('change', e => {
   store.set('fatPerKg', +e.target.value || 0.7);
+  calc(); renderToday();
+});
+$('#in-carbtarget').addEventListener('change', e => {
+  store.set('carbTarget', +e.target.value || 110);
   calc(); renderToday();
 });
 ['cm2-p', 'cm2-c', 'cm2-f'].forEach(id => $('#' + id).addEventListener('input', () => {
@@ -1514,7 +1535,7 @@ function renderWorkoutSummary() {
 }
 
 /* ---------- 資料備份 ---------- */
-const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle', 'macroMode', 'customMacros', 'fatPerKg', 'fatGoal', 'carbGoal'];
+const BACKUP_KEYS = ['days', 'logs', 'profile', 'proteinGoal', 'customFoods', 'weekPlan', 'overrides', 'kcalIntakeGoal', 'combos', 'hiddenFoods', 'foodUsage', 'goalMode', 'carbCycle', 'macroMode', 'customMacros', 'fatPerKg', 'carbTarget', 'fatGoal', 'carbGoal'];
 
 function buildBackup() {
   const data = { _app: 'fat-tracker', _ver: 1, _exportedAt: new Date().toISOString() };
