@@ -290,6 +290,17 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .food-chip .fq{font-size:11px;color:var(--ink2);font-weight:400}
 .food-chip .fav{color:#ffb800;font-size:12px;margin-right:2px}
 
+/* 每週缺口 */
+.weekly-deficit{display:flex;flex-direction:column;gap:8px}
+.wd-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;background:rgba(120,120,128,0.08)}
+.wd-left{display:flex;flex-direction:column;gap:2px}
+.wd-left b{font-size:15px;font-weight:700}
+.wd-left span{font-size:11px;color:var(--ink2)}
+.wd-val{font-size:20px;font-weight:800;letter-spacing:-0.02em;display:flex;align-items:baseline;gap:4px}
+.wd-val.ok{color:var(--accent2)}
+.wd-val.bad{color:var(--danger)}
+.wd-val small{font-size:10px;font-weight:400;color:var(--ink2)}
+
 /* 動態目標 */
 .dt-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .dt-row span{color:var(--ink2)}

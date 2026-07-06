@@ -1386,8 +1386,53 @@ function renderLog() {
 
   drawChart(logs);
   renderWorkoutSummary();
+  renderWeeklyDeficit();
   renderDynamicTarget();
   updateBackupStatus();
+}
+
+/* 每週熱量缺口統計（最近 6 週有記錄的） */
+function renderWeeklyDeficit() {
+  const box = $('#weekly-deficit'); if (!box) return;
+  const profile = store.get('profile', DEFAULTS);
+  const tdee = profile.bmr * profile.act;
+  const kcalGoal = +store.get('kcalIntakeGoal', Math.round(tdee - 770));
+  const weekTarget = Math.round((tdee - kcalGoal) * 7);
+  const allDays = store.get('days', {});
+
+  // 本週一
+  const thisMon = new Date(); thisMon.setDate(thisMon.getDate() - ((thisMon.getDay() + 6) % 7));
+  const rows = [];
+  for (let w = 0; w < 6; w++) {
+    const mon = new Date(thisMon); mon.setDate(thisMon.getDate() - w * 7);
+    let eaten = 0, recorded = 0;
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(mon); dt.setDate(mon.getDate() + i);
+      const day = allDays[dateToKey(dt)];
+      if (!day) continue;
+      let e = 0;
+      if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => e += f.kcal));
+      else if (day.foods) day.foods.forEach(f => e += f.kcal);
+      if (e > 0) { eaten += e; recorded++; }
+    }
+    if (recorded === 0) continue;
+    const deficit = Math.round(tdee * recorded - eaten);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    rows.push({ label: w === 0 ? '本週' : (w === 1 ? '上週' : w + '週前'),
+      range: `${dateToKey(mon).slice(5)}~${dateToKey(sun).slice(5)}`,
+      deficit, recorded });
+  }
+  if (!rows.length) { box.innerHTML = '<div class="empty">還沒有飲食記錄，開始記錄後這裡會統計每週缺口。</div>'; return; }
+  box.innerHTML = '';
+  rows.forEach(r => {
+    const good = r.deficit >= weekTarget * (r.recorded / 7); // 依已記錄天數比例判斷達標
+    const el = document.createElement('div');
+    el.className = 'wd-row';
+    el.innerHTML = `
+      <div class="wd-left"><b>${r.label}</b><span>${r.range}·記錄${r.recorded}天</span></div>
+      <div class="wd-val ${r.deficit >= 0 ? 'ok' : 'bad'}">${r.deficit >= 0 ? '−' : '+'}${Math.abs(r.deficit).toLocaleString()}<small>kcal缺口</small></div>`;
+    box.appendChild(el);
+  });
 }
 
 /* 動態目標：依體重趨勢建議調整 */

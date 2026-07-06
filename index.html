@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>減脂計畫</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=20">
+  <link rel="stylesheet" href="./style.css?v=21">
 </head>
 <body>
   <div id="app">
@@ -394,6 +394,10 @@
           <div class="log-stats" id="log-summary"></div>
         </div>
         <div class="card">
+          <div class="card-head"><h2>每週熱量缺口</h2><span class="muted">最近幾週</span></div>
+          <div class="weekly-deficit" id="weekly-deficit"></div>
+        </div>
+        <div class="card">
           <div class="card-head"><h2>運動完成率</h2><span class="muted" id="workout-range-label">近 7 天</span></div>
           <div class="workout-summary" id="workout-summary"></div>
         </div>
@@ -426,7 +430,7 @@
           <input type="file" id="import-file" accept="application/json" hidden>
         </div>
         <div class="card">
-          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v20</span></div>
+          <div class="card-head"><h2>App 更新</h2><span class="muted" id="app-version">v21</span></div>
           <p class="hint" id="update-hint">點下方按鈕會抓取最新版本並重新載入。你的資料不會被清除。</p>
           <div class="backup-btns">
             <button class="primary" id="update-btn">檢查並更新</button>
@@ -480,9 +484,9 @@
       }
     })();
   </script>
-  <script src="./firebase-config.js?v=20"></script>
-  <script src="./cloud.js?v=20"></script>
-  <script src="./app.js?v=20"></script>
+  <script src="./firebase-config.js?v=21"></script>
+  <script src="./cloud.js?v=21"></script>
+  <script src="./app.js?v=21"></script>
   <script>
     let swReg = null;
     let refreshing = false;

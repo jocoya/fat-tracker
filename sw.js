@@ -1,4 +1,4 @@
-const CACHE = 'fat-tracker-v20';
+const CACHE = 'fat-tracker-v21';
 const ASSETS = [
   './index.html',
   './app.js',
