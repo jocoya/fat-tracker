@@ -88,8 +88,11 @@ main{flex:1;padding:16px 16px 100px;display:flex;flex-direction:column;gap:14px}
 
 /* 本週熱量：雙條 */
 .week-cal-card{padding:16px}
-.wc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
-.wc-title{font-size:15px;font-weight:700}
+.wc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.wc-nav{display:flex;align-items:center;gap:6px}
+.wk-nav-btn{width:28px;height:28px;border:none;border-radius:8px;background:rgba(120,120,128,0.15);color:var(--ink);font-size:18px;line-height:1;cursor:pointer}
+.wk-nav-btn:active{background:rgba(120,120,128,0.3)}
+.wc-title{font-size:15px;font-weight:700;min-width:48px;text-align:center}
 .wc-range{font-size:12px;color:var(--ink2)}
 .wc2-row{margin-bottom:12px}
 .wc2-label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:13px;color:var(--ink2)}

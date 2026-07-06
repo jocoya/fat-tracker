@@ -234,31 +234,33 @@ function renderWeekCalories() {
   const monday = new Date(base);
   monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
 
-  // 只計算「到今天為止已經過去+今天」的天數（未來還沒到的天不算入預算，避免誤導）
-  const tk = todayKey();
-  let eatenTotal = 0, elapsedDays = 0, recordedDays = 0;
+  // 只統計「有記錄」的天（沒記錄的天不計入，避免缺口虛高）
+  let eatenTotal = 0, recordedDays = 0;
   for (let i = 0; i < 7; i++) {
     const dt = new Date(monday); dt.setDate(monday.getDate() + i);
     const key = dateToKey(dt);
-    if (key > tk) continue;              // 未來的天先不計
-    elapsedDays++;
     const day = allDays[key];
+    if (!day) continue;
     let eaten = 0;
-    if (day) {
-      if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => eaten += f.kcal));
-      else if (day.foods) day.foods.forEach(f => eaten += f.kcal);
-    }
-    if (eaten > 0) recordedDays++;
-    eatenTotal += eaten;
+    if (day.meals) MEALS.forEach(m => (day.meals[m] || []).forEach(f => eaten += f.kcal));
+    else if (day.foods) day.foods.forEach(f => eaten += f.kcal);
+    if (eaten > 0) { eatenTotal += eaten; recordedDays++; }
   }
 
-  // 到目前為止的「可消耗總量」= TDEE × 已過天數
-  const budgetSoFar = Math.round(tdee * elapsedDays);
+  // 可消耗總量 = TDEE × 有記錄的天數（只跟你實際記錄的天比較，才準確）
+  const budgetSoFar = Math.round(tdee * recordedDays);
   const deficit = Math.round(budgetSoFar - eatenTotal);
   const weekTarget = Math.round(dailyDeficit * 7);
 
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
   $('#wc-range').textContent = `${dateToKey(monday).slice(5)} ~ ${dateToKey(sunday).slice(5)}`;
+
+  // 週標題：本週 / N 週前
+  const thisMon = new Date(); thisMon.setDate(thisMon.getDate() - ((thisMon.getDay() + 6) % 7));
+  const weeksAgo = Math.round((dateToKey(thisMon) === dateToKey(monday) ? 0 : (new Date(dateToKey(thisMon)) - new Date(dateToKey(monday))) / (7 * 86400000)));
+  const wt = $('#wk-title');
+  if (wt) wt.textContent = weeksAgo <= 0 ? '本週' : (weeksAgo === 1 ? '上週' : weeksAgo + ' 週前');
+  const nextBtn = $('#wk-next'); if (nextBtn) nextBtn.style.visibility = weeksAgo <= 0 ? 'hidden' : 'visible';
 
   $('#wc-budget').textContent = budgetSoFar.toLocaleString();
   $('#wc-eaten').textContent = Math.round(eatenTotal).toLocaleString();
@@ -271,20 +273,20 @@ function renderWeekCalories() {
   ef.style.width = eatenPct + '%';
   ef.classList.toggle('over', eatenTotal > budgetSoFar); // 吃超過消耗=沒缺口
 
-  // 提示
-  const remainDays = 7 - elapsedDays;
+  // 提示（以「有記錄天數」為基準）
+  const remainDays = 7 - recordedDays;
   const remainTarget = weekTarget - deficit;
   if (weekTarget <= 0) {
     $('#wc-hint').textContent = '維持/增肌模式，本週不設缺口目標。';
+  } else if (recordedDays === 0) {
+    $('#wc-hint').textContent = `本週還沒有記錄。目標創造 ${weekTarget.toLocaleString()} kcal 缺口。`;
   } else if (deficit >= weekTarget) {
-    $('#wc-hint').textContent = `✓ 本週缺口已達標！目前 ${deficit.toLocaleString()} / 目標 ${weekTarget.toLocaleString()} kcal。`;
-  } else if (elapsedDays === 0) {
-    $('#wc-hint').textContent = `本週目標創造 ${weekTarget.toLocaleString()} kcal 缺口。`;
+    $('#wc-hint').textContent = `✓ 本週缺口已達標！已記錄 ${recordedDays} 天，缺口 ${deficit.toLocaleString()} / ${weekTarget.toLocaleString()} kcal。`;
   } else {
     const perDay = remainDays > 0 ? Math.round(remainTarget / remainDays) : 0;
     $('#wc-hint').textContent = remainDays > 0
-      ? `還差 ${remainTarget.toLocaleString()} kcal。剩 ${remainDays} 天，平均每天再省 ${perDay} kcal 即達標。`
-      : `本週最後一天，目前缺口 ${deficit.toLocaleString()} / ${weekTarget.toLocaleString()}。`;
+      ? `已記錄 ${recordedDays} 天、缺口 ${deficit.toLocaleString()}。還差 ${remainTarget.toLocaleString()}，剩 ${remainDays} 天平均每天再省 ${perDay} kcal。`
+      : `本週 7 天已記錄，缺口 ${deficit.toLocaleString()} / ${weekTarget.toLocaleString()}。`;
   }
 }
 
@@ -311,15 +313,29 @@ function renderWeekStrip() {
   $('#wt-workout').textContent = cur.workout || '尚未安排';
 }
 
-/* 點一週某天 → 首頁切換到「本週」對應的那天 */
+/* 點一週某天 → 首頁切換到「viewDate 所在週」對應的那天 */
 function switchToWeekDay(dayIdx) {
-  const today = new Date();
-  const diff = dayIdx - DAY_IDX();
-  const target = new Date(today); target.setDate(today.getDate() + diff);
+  const base = new Date(viewDate + 'T00:00:00');
+  const curIdx = dateKeyDayIdx(viewDate);
+  const diff = dayIdx - curIdx;
+  const target = new Date(base); target.setDate(base.getDate() + diff);
   viewDate = dateToKey(target);
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* 上一週 / 下一週：整個檢視移動 7 天，可回看/補記過去 */
+function shiftWeek(deltaDays) {
+  const base = new Date(viewDate + 'T00:00:00');
+  base.setDate(base.getDate() + deltaDays);
+  const key = dateToKey(base);
+  if (key > todayKey()) return; // 不看未來
+  viewDate = key;
+  renderToday();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#wk-prev').addEventListener('click', () => shiftWeek(-7));
+$('#wk-next').addEventListener('click', () => shiftWeek(7));
 
 function budgetGoals(carbType) {
   const cycleOn = carbCycleOn();
